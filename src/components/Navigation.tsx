@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import { FaBookOpen, FaBook } from "react-icons/fa";
 import { HiOutlineMenu } from "react-icons/hi";
 
@@ -12,39 +12,45 @@ const navItems = [
 ];
 
 export default function Navigation() {
-  // labels + icons
-  const [expanded, setExpanded] = useState(false);
-  // just icons
-  const [iconsOnly, setIconsOnly] = useState(false);
-  // hover-driven temporary expansion (doesn't mutate 'expanded')
-  const [hovered, setHovered] = useState(false);
-  // bounce the toggle after 2nd collapse stage
-  const [bounce, setBounce] = useState(false);
+  // states
+  const [expanded, setExpanded] = useState(false); // labels + icons
+  const [iconsOnly, setIconsOnly] = useState(false); // icons only
+  const [hovered, setHovered] = useState(false); // temporary expand on hover
+  const [bounce, setBounce] = useState(false); // bounce idle toggle
 
+  const controls = useAnimation();
   const router = useRouter();
   const pathname = usePathname();
 
   const collapseTimerRef = useRef<number | null>(null);
   const iconCollapseTimerRef = useRef<number | null>(null);
 
-  const clearTimers = () => {
+  // Clear timers safely
+  const clearTimers = (reset = false) => {
     if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
     if (iconCollapseTimerRef.current) clearTimeout(iconCollapseTimerRef.current);
+
     collapseTimerRef.current = null;
     iconCollapseTimerRef.current = null;
+
+    if (reset) {
+      setExpanded(false);
+      setIconsOnly(false);
+      setBounce(false);
+    }
   };
 
-  // Start two-stage auto-collapse (10s -> icons only, +5s -> toggle only + bounce)
+  // Auto-collapse stages
   const startTimers = () => {
     clearTimers();
-    setBounce(false); // user just interacted; stop bouncing
+    setBounce(false); // stop bounce on activity
 
     // After 10s → collapse to icons only
     collapseTimerRef.current = window.setTimeout(() => {
       setExpanded(false);
       setIconsOnly(true);
 
-      // After 5s → collapse to only toggle + start bounce
+      // After 5s more → collapse fully & bounce
       iconCollapseTimerRef.current = window.setTimeout(() => {
         setIconsOnly(false);
         setBounce(true);
@@ -59,25 +65,42 @@ export default function Navigation() {
     startTimers();
   };
 
-  // Clean up timers on unmount
+  // cleanup on unmount
   useEffect(() => {
-    return () => clearTimers();
+    return () => clearTimers(true);
   }, []);
 
-  // Compute visual states (hover expands without mutating 'expanded')
+  // Bounce animation
+  useEffect(() => {
+    if (bounce) {
+      controls
+        .start({
+          y: [0, -4, 0],
+          transition: { repeat: 5, duration: 0.7 }, // bounce 5 times
+        })
+        .then(() => {
+          // restart bounce after idle delay
+          setTimeout(() => setBounce(true), 8000);
+        });
+    } else {
+      controls.start({ y: 0 });
+    }
+  }, [bounce, controls]);
+
+  // Computed visual state
   const isExpanded = expanded || hovered;
   const showIcons = isExpanded || iconsOnly;
 
   return (
     <div
-      className="fixed top-1/4 left-2 sm:left-4 z-50 flex flex-col items-start"
+      className="fixed top-1/2 -translate-y-1/2 left-2 sm:left-4 z-50 flex flex-col items-start"
       onMouseEnter={() => {
-        setHovered(true);      // expand visually while hovering
-        setBounce(false);      // stop bounce when user engages
-        startTimers();         // restart inactivity countdown
+        setHovered(true);
+        setBounce(false);
+        startTimers();
       }}
       onMouseLeave={() => {
-        setHovered(false);     // revert to underlying stage on leave
+        setHovered(false);
       }}
     >
       {/* Toggle Button */}
@@ -86,9 +109,7 @@ export default function Navigation() {
         aria-expanded={isExpanded}
         onClick={handleToggle}
         className="mb-6 p-3 rounded-full bg-primary hover:bg-primary/90 transition shadow text-white"
-        // Bounce only after second-stage collapse
-        animate={bounce ? { y: [0, -4, 0] } : { y: 0 }}
-        transition={bounce ? { repeat: Infinity, repeatType: "reverse", duration: 0.7 } : {}}
+        animate={controls}
       >
         <HiOutlineMenu size={24} />
       </motion.button>
@@ -100,23 +121,23 @@ export default function Navigation() {
             const isActive = pathname === item.path;
 
             return (
-              <motion.div
+              <motion.button
                 key={index}
+                type="button"
+                role="link"
+                aria-current={isActive ? "page" : undefined}
+                onClick={() => {
+                  clearTimers(true);
+                  router.push(item.path);
+                  startTimers();
+                }}
+                className="flex items-center overflow-hidden rounded-full shadow-lg text-white cursor-pointer"
                 initial={false}
                 animate={{
                   width: isExpanded ? 160 : 56,
                   backgroundColor: isActive ? "#353535" : "#9CA3AF",
                 }}
                 transition={{ duration: 0.3 }}
-                className="flex items-center cursor-pointer overflow-hidden rounded-full shadow-lg text-white"
-                onClick={() => {
-                  // Navigate and fully close the rail immediately; stop timers & bounce
-                  clearTimers();
-                  setBounce(false);
-                  setExpanded(false);
-                  setIconsOnly(false);
-                  router.push(item.path);
-                }}
               >
                 <div className="flex items-center justify-center w-14 h-14 text-xl">
                   {item.icon}
@@ -135,7 +156,7 @@ export default function Navigation() {
                     </motion.span>
                   )}
                 </AnimatePresence>
-              </motion.div>
+              </motion.button>
             );
           })}
       </div>
