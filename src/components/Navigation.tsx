@@ -9,6 +9,7 @@ import { HiOutlineMenu } from "react-icons/hi";
 const navItems = [
   { label: "DOAJ", path: "/doaj", icon: <FaBookOpen /> },
   { label: "DOAB", path: "/doab", icon: <FaBook /> },
+  { label: "OPENALEX", path: "/open-alex", icon: <FaBookOpen /> },
 ];
 
 export default function Navigation() {
@@ -115,6 +116,7 @@ export default function Navigation() {
       </motion.button>
 
       {/* Navigation Items */}
+
       <div className="flex flex-col space-y-4">
         {showIcons &&
           navItems.map((item, index) => {

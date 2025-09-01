@@ -62,7 +62,23 @@ export default function Home() {
             export your selections to Word format.
           </p>
         </motion.div>
+
+          {/* Open-alex */}
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="bg-white shadow-xl rounded-3xl p-10 cursor-pointer hover:shadow-2xl transition"
+          onClick={() => navigateTo("/open-alex")}
+        >
+          <h2 className="text-2xl font-bold text-blue-700 mb-4">OPEN-ALEX Scraper</h2>
+          <p className="text-gray-600">
+            Browse and fetch open access books, filter by year or subject, and
+            export your selections to Word format.
+          </p>
+        </motion.div>
       </motion.div>
+
+      
 
       {/* Footer */}
       <motion.p
