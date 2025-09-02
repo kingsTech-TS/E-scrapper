@@ -82,7 +82,7 @@ export default function Home() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           className="bg-white shadow-xl rounded-3xl p-10 cursor-pointer hover:shadow-2xl transition"
-          onClick={() => navigateTo("/doab")}
+          onClick={() => navigateTo("/oapen")}
         >
           <h2 className="text-2xl font-bold text-green-700 mb-4">OAPEN Scraper</h2>
           <p className="text-gray-600">
