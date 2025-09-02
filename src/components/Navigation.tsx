@@ -7,9 +7,10 @@ import { FaBookOpen, FaBook } from "react-icons/fa";
 import { HiOutlineMenu } from "react-icons/hi";
 
 const navItems = [
-  { label: "DOAJ", path: "/doaj", icon: <FaBookOpen /> },
+  { label: "DOAJ", path: "/doaj", icon: <FaBook /> },
   { label: "DOAB", path: "/doab", icon: <FaBook /> },
-  { label: "OPENALEX", path: "/open-alex", icon: <FaBookOpen /> },
+  { label: "OPENALEX", path: "/open-alex", icon: <FaBook /> },
+  { label: "OAPEN", path: "/oapen", icon: <FaBook /> },
 ];
 
 export default function Navigation() {

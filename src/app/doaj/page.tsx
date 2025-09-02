@@ -15,6 +15,7 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { motion } from "framer-motion"
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -206,6 +207,7 @@ export default function Home() {
   };
 
   return (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
     <div className="min-h-screen bg-gray-50 p-8">
       <Toaster position="top-right" />
 
@@ -258,6 +260,7 @@ export default function Home() {
           {loading ? "Loading..." : "Search Articles"}
         </button>
       </Card>
+      
 
       {/* Results */}
       <div className="max-w-6xl mx-auto">
@@ -326,5 +329,6 @@ export default function Home() {
         )}
       </div>
     </div>
+    </motion.div>
   );
 }//make this look like the picture
