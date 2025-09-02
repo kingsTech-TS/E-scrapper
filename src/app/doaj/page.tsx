@@ -16,6 +16,7 @@ import {
 import { saveAs } from "file-saver";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion"
+import { Loader2 } from "lucide-react";
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -207,128 +208,135 @@ export default function Home() {
   };
 
   return (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-    <div className="min-h-screen bg-gray-50 p-8">
-      <Toaster position="top-right" />
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+      <div className="min-h-screen bg-gray-50 p-8">
+        <Toaster position="top-right" />
 
 
-      {/* Search Form */}
-      <Card className="max-w-3xl mx-auto bg-white shadow-md rounded-2xl p-6 mb-10">
+        {/* Search Form */}
+        <Card className="max-w-3xl mx-auto bg-white shadow-md rounded-2xl p-6 mb-10">
 
-        <CardHeader>
-          <CardTitle className="text-xl font-bold text-center">
-            DOAJ Journal Scraper
-          </CardTitle>
-        </CardHeader>
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-center">
+              DOAJ Journal Scraper
+            </CardTitle>
+          </CardHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            type="text"
-            placeholder="Enter topic (e.g. African Studies)"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="border rounded-lg px-3 py-2 w-full"
-          />
-          <input
-            type="number"
-            placeholder="Start Year (e.g. 2021)"
-            value={yearFrom}
-            onChange={(e) => setYearFrom(e.target.value)}
-            className="border rounded-lg px-3 py-2 w-full"
-          />
-          <input
-            type="number"
-            placeholder="End Year (e.g. 2025)"
-            value={yearTo}
-            onChange={(e) => setYearTo(e.target.value)}
-            className="border rounded-lg px-3 py-2 w-full"
-          />
-          <input
-            type="number"
-            placeholder="No. of results (e.g. 20)"
-            value={size}
-            onChange={(e) => setSize(Number(e.target.value))}
-            className="border rounded-lg px-3 py-2 w-full"
-          />
-        </div>
-
-        <button
-          onClick={fetchArticles}
-          disabled={loading}
-          className="mt-4 w-full bg-primary text-white py-2 rounded-lg hover:bg-primary/90 transition cursor-pointer"
-        >
-          {loading ? "fetching..." : "Scrape Journal"}
-        </button>
-      </Card>
-      
-
-      {/* Results */}
-      <div className="max-w-6xl mx-auto">
-        {articles.length > 0 ? (
-          <div className="overflow-x-auto shadow-lg rounded-2xl">
-            <table className="w-full border-collapse bg-white rounded-2xl">
-              <thead className="bg-primary text-white">
-                <tr>
-                  <th className="p-3 text-left border">Journal</th>
-                  <th className="p-3 text-left border">Title</th>
-                  <th className="p-3 text-left border">Authors</th>
-                  <th className="p-3 text-left border">Year</th>
-                  <th className="p-3 text-left border">URL</th>
-                </tr>
-              </thead>
-              <tbody>
-                {articles.map((a, i) => (
-                  <tr
-                    key={i}
-                    className="border-b hover:bg-gray-50 transition text-sm"
-                  >
-                    <td className="p-3 border">{a.Journal || "—"}</td>
-                    <td className="p-3 border">{a.Title}</td>
-                    <td className="p-3 border">
-                      {Array.isArray(a.Authors)
-                        ? a.Authors.join(", ")
-                        : a.Authors || "—"}
-                    </td>
-                    <td className="p-3 border">{a.Year || "—"}</td>
-                    <td className="p-3 border">
-                      {a.URL ? (
-                        <a
-                          href={a.URL}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 underline"
-                        >
-                          View
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {/* 📄 Download button */}
-            <button
-              onClick={downloadWord}
-              disabled={articles.length === 0}
-              className={`mt-4 w-full py-2 rounded-lg cursor-pointer transition ${articles.length === 0
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-primary text-white hover:bg-primary/90"
-                }`}
-            >
-              ⬇Download as Word
-            </button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              placeholder="Enter topic (e.g. African Studies)"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="border rounded-lg px-3 py-2 w-full"
+            />
+            <input
+              type="number"
+              placeholder="Start Year (e.g. 2021)"
+              value={yearFrom}
+              onChange={(e) => setYearFrom(e.target.value)}
+              className="border rounded-lg px-3 py-2 w-full"
+            />
+            <input
+              type="number"
+              placeholder="End Year (e.g. 2025)"
+              value={yearTo}
+              onChange={(e) => setYearTo(e.target.value)}
+              className="border rounded-lg px-3 py-2 w-full"
+            />
+            <input
+              type="number"
+              placeholder="No. of results (e.g. 20)"
+              value={size}
+              onChange={(e) => setSize(Number(e.target.value))}
+              className="border rounded-lg px-3 py-2 w-full"
+            />
           </div>
-        ) : (
-          !loading && (
-            <p className="text-center text-gray-400 italic mt-6">
-              🔍 Start by searching for a topic above...
-            </p>
-          )
-        )}
+
+          <button
+            onClick={fetchArticles}
+            disabled={loading}
+            className="mt-4 w-full bg-primary text-white py-2 rounded-lg hover:bg-primary/90 transition cursor-pointer"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <Loader2 className="animate-spin mr-2" /> Fetching...
+              </span>
+            ) : (
+              "Fetch Journal"
+            )}
+          </button>
+
+        </Card>
+
+
+        {/* Results */}
+        <div className="max-w-6xl mx-auto">
+          {articles.length > 0 ? (
+            <div className="overflow-x-auto shadow-lg rounded-2xl">
+              <table className="w-full border-collapse bg-white rounded-2xl">
+                <thead className="bg-primary text-white">
+                  <tr>
+                    <th className="p-3 text-left border">Journal</th>
+                    <th className="p-3 text-left border">Title</th>
+                    <th className="p-3 text-left border">Authors</th>
+                    <th className="p-3 text-left border">Year</th>
+                    <th className="p-3 text-left border">URL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {articles.map((a, i) => (
+                    <tr
+                      key={i}
+                      className="border-b hover:bg-gray-50 transition text-sm"
+                    >
+                      <td className="p-3 border">{a.Journal || "—"}</td>
+                      <td className="p-3 border">{a.Title}</td>
+                      <td className="p-3 border">
+                        {Array.isArray(a.Authors)
+                          ? a.Authors.join(", ")
+                          : a.Authors || "—"}
+                      </td>
+                      <td className="p-3 border">{a.Year || "—"}</td>
+                      <td className="p-3 border">
+                        {a.URL ? (
+                          <a
+                            href={a.URL}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-600 underline"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {/* 📄 Download button */}
+              <button
+                onClick={downloadWord}
+                disabled={articles.length === 0}
+                className={`mt-4 w-full py-2 rounded-lg cursor-pointer transition ${articles.length === 0
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-primary text-white hover:bg-primary/90"
+                  }`}
+              >
+                ⬇Download as Word
+              </button>
+            </div>
+          ) : (
+            !loading && (
+              <p className="text-center text-gray-400 italic mt-6">
+                🔍 Start by searching for a topic above...
+              </p>
+            )
+          )}
+        </div>
       </div>
-    </div>
     </motion.div>
   );
 }//make this look like the picture
