@@ -217,7 +217,7 @@ export default function Home() {
 
         <CardHeader>
           <CardTitle className="text-xl font-bold text-center">
-            DOAJ Book Scraper
+            DOAJ Journal Scraper
           </CardTitle>
         </CardHeader>
 
@@ -257,7 +257,7 @@ export default function Home() {
           disabled={loading}
           className="mt-4 w-full bg-primary text-white py-2 rounded-lg hover:bg-primary/90 transition cursor-pointer"
         >
-          {loading ? "Loading..." : "Search Articles"}
+          {loading ? "fetching..." : "Scrape Journal"}
         </button>
       </Card>
       
