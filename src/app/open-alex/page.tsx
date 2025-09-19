@@ -6,18 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
-import { 
-  Document, Packer, Paragraph, Table, TableRow, TableCell, 
-  TextRun, WidthType, ExternalHyperlink 
+import {
+  Document, Packer, Paragraph, Table, TableRow, TableCell,
+  TextRun, WidthType, ExternalHyperlink
 } from "docx"
 import { saveAs } from "file-saver"
 import toast, { Toaster } from "react-hot-toast"
 
-// ✅ Match FastAPI response
+// ✅ Match normalized data shape
 interface BookResult {
   Title: string
   Authors: string
-  Year: string
+  Year: number
   URL: string
   Subject: string
 }
@@ -56,10 +56,20 @@ export default function ScraperUI() {
       if (!response.ok) throw new Error("Failed to fetch data")
 
       const data = await response.json()
-      setResults(data || [])
 
-      toast.success(`Found ${data?.length || 0} books.`, { id: toastId })
-      if (data.length === 0) toast("No results found for your search.", { id: toastId })
+      // 🔑 Normalize field names
+      const normalized: BookResult[] = (data || []).map((b: any) => ({
+        Title: b.Title || b.title || "",
+        Authors: b.Authors || b.authors || "",
+        Year: Number(b.Year || b.year || 0), // ✅ Always number
+        URL: b.URL || b.url || "",
+        Subject: b.Subject || b.subject || "",
+      }))
+
+      setResults(normalized)
+
+      toast.success(`Found ${normalized.length || 0} books.`, { id: toastId })
+      if (normalized.length === 0) toast("No results found for your search.", { id: toastId })
     } catch (error: any) {
       console.error("Error fetching data:", error)
       setResults([])
@@ -89,7 +99,7 @@ export default function ScraperUI() {
       const csvRows = [
         headers,
         ...results.map((book) => [
-          book.Year,
+          book.Year || "",
           book.Authors,
           book.Title,
           book.URL,
@@ -127,7 +137,7 @@ export default function ScraperUI() {
       const fileName = `${subjectSafe || "books"}_${searchParams.startYear}-${searchParams.endYear}.docx`
 
       const tableWidth = 10000
-      const colPercents = [10, 20, 40, 20, 10] // 5 columns
+      const colPercents = [10, 20, 40, 20, 10]
       const colWidths = colPercents.map(p => Math.floor((p / 100) * tableWidth))
       const headers = ["Year", "Authors", "Title", "URL", "Subject"]
 
@@ -148,38 +158,43 @@ export default function ScraperUI() {
         (book) =>
           new TableRow({
             children: [
-              { val: book.Year, width: colWidths[0] },
-              { val: book.Authors, width: colWidths[1] },
-              { val: book.Title, width: colWidths[2] },
-              { val: book.URL, width: colWidths[3], isLink: true },
-              { val: book.Subject, width: colWidths[4] },
-            ].map((col) => {
-              if (col.isLink && col.val) {
-                return new TableCell({
-                  children: [
-                    new Paragraph({
-                      children: [
-                        new ExternalHyperlink({
-                          link: col.val,
-                          children: [
-                            new TextRun({
-                              text: "View Book",
-                              style: "Hyperlink",
-                            }),
-                          ],
-                        }),
-                      ],
-                    }),
-                  ],
-                  width: { size: col.width, type: WidthType.DXA },
-                })
-              }
-
-              return new TableCell({
-                children: [new Paragraph({ text: col.val || "" })],
-                width: { size: col.width, type: WidthType.DXA },
-              })
-            }),
+              new TableCell({
+                children: [new Paragraph({ text: String(book.Year || "") })], // ✅ force string
+                width: { size: colWidths[0], type: WidthType.DXA },
+              }),
+              new TableCell({
+                children: [new Paragraph({ text: book.Authors || "" })],
+                width: { size: colWidths[1], type: WidthType.DXA },
+              }),
+              new TableCell({
+                children: [new Paragraph({ text: book.Title || "" })],
+                width: { size: colWidths[2], type: WidthType.DXA },
+              }),
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: book.URL
+                      ? [
+                          new ExternalHyperlink({
+                            link: book.URL,
+                            children: [
+                              new TextRun({
+                                text: "View Book",
+                                style: "Hyperlink",
+                              }),
+                            ],
+                          }),
+                        ]
+                      : [new TextRun({ text: "" })],
+                  }),
+                ],
+                width: { size: colWidths[3], type: WidthType.DXA },
+              }),
+              new TableCell({
+                children: [new Paragraph({ text: book.Subject || "" })],
+                width: { size: colWidths[4], type: WidthType.DXA },
+              }),
+            ],
           })
       )
 
@@ -318,7 +333,7 @@ export default function ScraperUI() {
                       transition={{ delay: idx * 0.03 }}
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {book.Year}
+                        {book.Year || "-"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {book.Authors}
