@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { FaBook, FaSearch, FaGlobe, FaArchive, FaArrowRight, FaFilter } from "react-icons/fa";
+import { FaBook, FaSearch, FaGlobe, FaArchive, FaArrowRight, FaFilter, FaTimes } from "react-icons/fa";
 import { Input } from "@/components/ui/input";
 
 const scrapers = [
@@ -96,7 +96,7 @@ export default function Home() {
                   onClick={() => setSearchQuery("")}
                   className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-400"
                 >
-                  <HiX />
+                  <FaTimes />
                 </button>
               )}
             </div>
