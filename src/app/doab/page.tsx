@@ -1,19 +1,14 @@
 "use client"
 
-import { useState } from "react"
-import { motion } from "framer-motion"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
 import { 
   Document, Packer, Paragraph, Table, TableRow, TableCell, 
   TextRun, WidthType, ExternalHyperlink 
 } from "docx"
 import { saveAs } from "file-saver"
-import toast, { Toaster } from "react-hot-toast"
+import toast from "react-hot-toast"
+import ScraperTemplate, { SearchParams } from "@/components/ScraperTemplate"
+import { ExternalLink } from "lucide-react"
 
-// ✅ Match API response keys
 interface BookResult {
   Year: string
   "Author(s)/Contributors": string
@@ -21,66 +16,21 @@ interface BookResult {
   URL: string
 }
 
-export default function ScraperUI() {
-  const [searchParams, setSearchParams] = useState({
-    subject: "",
-    startYear: "2021",
-    endYear: "2025",
-    globalLimit: "50",
-  })
-  const [results, setResults] = useState<BookResult[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [hasSearched, setHasSearched] = useState(false)
+export default function DoabScraper() {
+  const onSearch = async (params: SearchParams) => {
+    const response = await fetch(
+      `https://doab-scrapper-api.onrender.com/scrape?query=${encodeURIComponent(
+        params.subject
+      )}&start_year=${params.startYear}&end_year=${params.endYear}&limit=${params.limit}`
+    )
 
-  // 🔍 Handle input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchParams({ ...searchParams, [e.target.name]: e.target.value })
+    if (!response.ok) throw new Error("Failed to fetch data")
+
+    const data = await response.json()
+    return data.books || []
   }
 
-  // 🚀 Handle search submit
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    setIsLoading(true)
-    setHasSearched(true)
-
-    const toastId = toast.loading("Fetching books...")
-
-    try {
-      const response = await fetch(
-        `https://doab-scrapper-api.onrender.com/scrape?query=${encodeURIComponent(
-          searchParams.subject
-        )}&start_year=${searchParams.startYear}&end_year=${searchParams.endYear}&limit=${searchParams.globalLimit}`
-      )
-
-      if (!response.ok) throw new Error("Failed to fetch data")
-
-      const data = await response.json()
-      setResults(data.books || [])
-
-      toast.success(`Found ${data.books?.length || 0} books.`, { id: toastId })
-      if (data.books.length === 0) toast("No results found for your search.", { id: toastId })
-    } catch (error: any) {
-      console.error("Error fetching data:", error)
-      setResults([])
-      toast.error(
-        <div>
-          <p>{error.message || "Something went wrong"}</p>
-          <Button
-            className="mt-2 text-sm"
-            onClick={() => handleSubmit()}
-          >
-            Retry
-          </Button>
-        </div>,
-        { id: toastId }
-      )
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // 📥 Download CSV
-  const downloadCSV = () => {
+  const downloadCSV = (results: BookResult[], params: SearchParams) => {
     if (results.length === 0) return
 
     try {
@@ -100,11 +50,8 @@ export default function ScraperUI() {
         .join("\n")
 
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-      const subjectSafe = searchParams.subject
-        .trim()
-        .replace(/\s+/g, "_")
-        .replace(/[^a-zA-Z0-9_]/g, "")
-      const fileName = `${subjectSafe || "books"}_${searchParams.startYear}-${searchParams.endYear}.csv`
+      const subjectSafe = params.subject.trim().replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "")
+      const fileName = `${subjectSafe || "doab_books"}_${params.startYear}-${params.endYear}.csv`
 
       saveAs(blob, fileName)
       toast.success("CSV download started.")
@@ -113,16 +60,12 @@ export default function ScraperUI() {
     }
   }
 
-  // 📥 Download Word (DOCX)
-  const downloadWord = async () => {
+  const downloadWord = async (results: BookResult[], params: SearchParams) => {
     if (results.length === 0) return
 
     try {
-      const subjectSafe = searchParams.subject
-        .trim()
-        .replace(/\s+/g, "_")
-        .replace(/[^a-zA-Z0-9_]/g, "")
-      const fileName = `${subjectSafe || "books"}_${searchParams.startYear}-${searchParams.endYear}.docx`
+      const subjectSafe = params.subject.trim().replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "")
+      const fileName = `${subjectSafe || "doab_books"}_${params.startYear}-${params.endYear}.docx`
 
       const tableWidth = 10000
       const colPercents = [10, 25, 45, 20]
@@ -185,7 +128,7 @@ export default function ScraperUI() {
           {
             children: [
               new Paragraph({
-                text: `Book Results for "${searchParams.subject}" (${searchParams.startYear}-${searchParams.endYear})`,
+                text: `DOAB Book Results for "${params.subject}" (${params.startYear}-${params.endYear})`,
                 heading: "Heading1",
               }),
               new Paragraph({ text: " " }),
@@ -200,156 +143,35 @@ export default function ScraperUI() {
 
       const blob = await Packer.toBlob(doc)
       saveAs(blob, fileName)
-      toast.success("Word download started.")
+      toast.success("Word document download started.")
     } catch (err: any) {
-      toast.error(`Error downloading Word: ${err.message || "Something went wrong"}`)
+      toast.error(`Error downloading Word document: ${err.message || "Something went wrong"}`)
     }
   }
 
+  const columns = [
+    { key: "Year", label: "Year" },
+    { key: "Author(s)/Contributors", label: "Authors" },
+    { key: "Title", label: "Title" },
+    { 
+      key: "URL", 
+      label: "Link",
+      render: (val: string) => (
+        <a href={val} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline flex items-center gap-1">
+          View <ExternalLink className="h-3 w-3" />
+        </a>
+      )
+    },
+  ]
+
   return (
-    <div className="container mx-auto p-6">
-      {/* React Hot Toast container */}
-      <Toaster position="top-right" />
-
-      {/* Search Form */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <Card className="max-w-2xl mx-auto shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-center">
-              DOAB Book Scraper
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="grid gap-4">
-              <Input
-                name="subject"
-                placeholder="Enter subject/course (e.g. Computer Science)"
-                value={searchParams.subject}
-                onChange={handleInputChange}
-                required
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  type="number"
-                  name="startYear"
-                  placeholder="Start Year"
-                  value={searchParams.startYear}
-                  onChange={handleInputChange}
-                  required
-                />
-                <Input
-                  type="number"
-                  name="endYear"
-                  placeholder="End Year"
-                  value={searchParams.endYear}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <Input
-                type="number"
-                name="globalLimit"
-                placeholder="Global Limit (e.g. 50)"
-                value={searchParams.globalLimit}
-                onChange={handleInputChange}
-                required
-              />
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <span className="flex items-center">
-                    <Loader2 className="animate-spin mr-2" />
-                    Fetching...
-                  </span>
-                ) : (
-                  "Scrape Books"
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Results Table */}
-      {hasSearched && (
-        <motion.div
-          className="mt-8"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          {results.length > 0 ? (
-            <div className="overflow-x-auto bg-white shadow-md rounded-lg">
-              <div className="p-4">
-                <p className="text-sm text-gray-600 mb-2">
-                  Showing {results.length} result{results.length !== 1 && "s"}
-                </p>
-              </div>
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Year
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Author(s)/Contributors
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      Title
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                      URL
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {results.map((book, idx) => (
-                    <motion.tr
-                      key={idx}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.03 }}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {book.Year}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {book["Author(s)/Contributors"]}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {book.Title}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 hover:underline">
-                        <a
-                          href={book.URL}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          View Book
-                        </a>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="p-4 flex gap-2">
-                <Button onClick={downloadCSV} className="w-1/2">
-                  Download CSV
-                </Button>
-                <Button onClick={downloadWord} className="w-1/2">
-                  Download Word
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-center text-gray-500">
-              No results found for your search.
-            </p>
-          )}
-        </motion.div>
-      )}
-    </div>
+    <ScraperTemplate
+      title="DOAB Scraper"
+      description="Browse and fetch open access books from the Directory of Open Access Books."
+      onSearch={onSearch}
+      onDownloadCSV={downloadCSV}
+      onDownloadWord={downloadWord}
+      columns={columns}
+    />
   )
 }

@@ -1,342 +1,182 @@
 "use client";
 
-import { useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
-import {
-  Document,
-  Packer,
-  Paragraph,
-  TextRun,
-  Table,
-  TableRow,
-  TableCell,
-  WidthType,
-  ExternalHyperlink,
+import { 
+  Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, 
+  WidthType, ExternalHyperlink 
 } from "docx";
 import { saveAs } from "file-saver";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { motion } from "framer-motion"
-import { Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
+import ScraperTemplate, { SearchParams } from "@/components/ScraperTemplate";
+import { ExternalLink } from "lucide-react";
 
-export default function Home() {
-  const [query, setQuery] = useState("");
-  const [yearFrom, setYearFrom] = useState("");
-  const [yearTo, setYearTo] = useState("");
-  const [size, setSize] = useState(10);
-  const [articles, setArticles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+interface ArticleResult {
+  Journal: string;
+  Title: string;
+  Authors: string | string[];
+  Year: string | number;
+  URL: string;
+}
 
-  const fetchArticles = async () => {
-    if (!query) {
-      toast.error("⚠️ Please enter a topic before searching.");
-      return;
-    }
+export default function DoajScraper() {
+  const onSearch = async (params: SearchParams) => {
+    const res = await fetch(
+      `/api/search?query=${params.subject}&year_from=${params.startYear}&year_to=${params.endYear}&size=${params.limit}`
+    );
 
-    setLoading(true);
-    setArticles([]);
+    if (!res.ok) throw new Error("Failed to fetch");
 
-    const loadingToast = toast.loading("Fetching articles...");
+    return await res.json();
+  };
+
+  const downloadCSV = (results: ArticleResult[], params: SearchParams) => {
+    if (results.length === 0) return;
 
     try {
-      const res = await fetch(
-        `/api/search?query=${query}&year_from=${yearFrom}&year_to=${yearTo}&size=${size}`
-      );
+      const headers = ["Journal", "Title", "Authors", "Year", "URL"];
+      const csvRows = [
+        headers,
+        ...results.map((a) => [
+          a.Journal || "—",
+          a.Title || "—",
+          Array.isArray(a.Authors) ? a.Authors.join(", ") : a.Authors || "—",
+          a.Year?.toString() || "—",
+          a.URL || "—",
+        ]),
+      ];
 
-      if (!res.ok) throw new Error("Failed to fetch");
+      const csvContent = csvRows
+        .map((row) => row.map((val) => `"${val}"`).join(","))
+        .join("\n");
 
-      const data = await res.json();
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const safeQuery = params.subject.trim().replace(/[^a-z0-9]/gi, "_");
+      const fileName = `${safeQuery || "doaj_articles"}_${params.startYear}-${params.endYear}.csv`;
 
-      toast.dismiss(loadingToast);
-
-      if (data.length === 0) {
-        toast("No results found 🚫", { icon: "🔍" });
-      } else {
-        setArticles(data);
-        toast.success(`✅ Found ${data.length} articles`);
-      }
-    } catch (err) {
-      console.error(err);
-      toast.dismiss(loadingToast);
-      toast.error("❌ Error fetching data.");
-    } finally {
-      setLoading(false);
+      saveAs(blob, fileName);
+      toast.success("CSV download started.");
+    } catch (err: any) {
+      toast.error(`Error downloading CSV: ${err.message || "Something went wrong"}`);
     }
   };
 
-  // 📄 Generate Word Doc
-  const downloadWord = async () => {
-    if (articles.length === 0) {
-      toast.error("⚠️ No articles to export.");
-      return;
-    }
+  const downloadWord = async (results: ArticleResult[], params: SearchParams) => {
+    if (results.length === 0) return;
 
-    const headerRow = new TableRow({
-      children: [
-        new TableCell({
-          children: [
-            new Paragraph({
-              children: [new TextRun({ text: "Journal", bold: true })],
-            }),
-          ],
-          shading: { fill: "E5E7EB" },
-        }),
-        new TableCell({
-          children: [
-            new Paragraph({
-              children: [new TextRun({ text: "Title", bold: true })],
-            }),
-          ],
-          shading: { fill: "E5E7EB" },
-        }),
-        new TableCell({
-          children: [
-            new Paragraph({
-              children: [new TextRun({ text: "Authors", bold: true })],
-            }),
-          ],
-          shading: { fill: "E5E7EB" },
-        }),
-        new TableCell({
-          children: [
-            new Paragraph({
-              children: [new TextRun({ text: "Year", bold: true })],
-            }),
-          ],
-          shading: { fill: "E5E7EB" },
-        }),
-        new TableCell({
-          children: [
-            new Paragraph({
-              children: [new TextRun({ text: "URL", bold: true })],
-            }),
-          ],
-          shading: { fill: "E5E7EB" },
-        }),
-      ],
-    });
+    try {
+      const headerRow = new TableRow({
+        children: ["Journal", "Title", "Authors", "Year", "URL"].map(
+          (text) =>
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text, bold: true })],
+                }),
+              ],
+              shading: { fill: "E5E7EB" },
+            })
+        ),
+      });
 
-    const tableRows = [
-      headerRow,
-      ...articles.map(
-        (a) =>
-          new TableRow({
-            children: [
-              new TableCell({ children: [new Paragraph(a.Journal || "—")] }),
-              new TableCell({ children: [new Paragraph(a.Title || "—")] }),
-              new TableCell({
-                children: [
-                  new Paragraph(
-                    Array.isArray(a.Authors)
-                      ? a.Authors.join(", ")
-                      : a.Authors || "—"
-                  ),
-                ],
-              }),
-              new TableCell({
-                children: [new Paragraph(a.Year?.toString() || "—")],
-              }),
-              new TableCell({
-                children: [
-                  a.URL
-                    ? new Paragraph({
-                      children: [
-                        new ExternalHyperlink({
+      const tableRows = [
+        headerRow,
+        ...results.map(
+          (a) =>
+            new TableRow({
+              children: [
+                new TableCell({ children: [new Paragraph(a.Journal || "—")] }),
+                new TableCell({ children: [new Paragraph(a.Title || "—")] }),
+                new TableCell({
+                  children: [
+                    new Paragraph(
+                      Array.isArray(a.Authors) ? a.Authors.join(", ") : a.Authors || "—"
+                    ),
+                  ],
+                }),
+                new TableCell({
+                  children: [new Paragraph(a.Year?.toString() || "—")],
+                }),
+                new TableCell({
+                  children: [
+                    a.URL
+                      ? new Paragraph({
                           children: [
-                            new TextRun({
-                              text: "View",
-                              style: "Hyperlink",
+                            new ExternalHyperlink({
+                              children: [
+                                new TextRun({
+                                  text: "View",
+                                  style: "Hyperlink",
+                                }),
+                              ],
+                              link: a.URL,
                             }),
                           ],
-                          link: a.URL,
-                        }),
-                      ],
-                    })
-                    : new Paragraph("—"),
-                ],
+                        })
+                      : new Paragraph("—"),
+                  ],
+                }),
+              ],
+            })
+        ),
+      ];
+
+      const doc = new Document({
+        sections: [
+          {
+            children: [
+              new Paragraph({
+                text: `DOAJ Articles Results for "${params.subject}" (${params.startYear}-${params.endYear})`,
+                heading: "Heading1",
+              }),
+              new Paragraph(""),
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: tableRows,
               }),
             ],
-          })
-      ),
-    ];
+          },
+        ],
+      });
 
-    const doc = new Document({
-      sections: [
-        {
-          properties: {},
-          children: [
-            new Paragraph({
-              text: "DOAJ Articles Export",
-              heading: "Heading1",
-            }),
-            new Paragraph(""),
-            new Table({
-              width: { size: 100, type: WidthType.PERCENTAGE },
-              rows: tableRows,
-              borders: {
-                top: { style: "single", size: 1, color: "000000" },
-                bottom: { style: "single", size: 1, color: "000000" },
-                left: { style: "single", size: 1, color: "000000" },
-                right: { style: "single", size: 1, color: "000000" },
-                insideHorizontal: { style: "single", size: 1, color: "000000" },
-                insideVertical: { style: "single", size: 1, color: "000000" },
-              },
-            }),
-          ],
-        },
-      ],
-    });
+      const safeQuery = params.subject.trim().replace(/[^a-z0-9]/gi, "_");
+      const fileName = `${safeQuery || "doaj_articles"}_${params.startYear}-${params.endYear}.docx`;
 
-    // 📂 Dynamic file name based on topic + years
-    const safeQuery = query.trim().replace(/[^a-z0-9]/gi, "_");
-    let fileName = safeQuery;
-
-    if (yearFrom && yearTo) {
-      fileName += `_${yearFrom}-${yearTo}`;
-    } else if (yearFrom) {
-      fileName += `_from_${yearFrom}`;
-    } else if (yearTo) {
-      fileName += `_up_to_${yearTo}`;
-    } else {
-      fileName += `_all_years`;
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, fileName);
+      toast.success("Word document download started.");
+    } catch (err: any) {
+      toast.error(`Error downloading Word document: ${err.message || "Something went wrong"}`);
     }
-
-    fileName += ".docx";
-
-    // ✅ FIX: Actually generate and save
-    const blob = await Packer.toBlob(doc);
-    saveAs(blob, fileName);
   };
 
+  const columns = [
+    { key: "Journal", label: "Journal" },
+    { key: "Title", label: "Title" },
+    { 
+      key: "Authors", 
+      label: "Authors",
+      render: (val: any) => (Array.isArray(val) ? val.join(", ") : val || "—")
+    },
+    { key: "Year", label: "Year" },
+    { 
+      key: "URL", 
+      label: "Link",
+      render: (val: string) => (
+        <a href={val} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline flex items-center gap-1">
+          View <ExternalLink className="h-3 w-3" />
+        </a>
+      )
+    },
+  ];
+
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-      <div className="min-h-screen bg-gray-50 p-8">
-        <Toaster position="top-right" />
-
-
-        {/* Search Form */}
-        <Card className="max-w-3xl mx-auto bg-white shadow-md rounded-2xl p-6 mb-10">
-
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-center">
-              DOAJ Journal Scraper
-            </CardTitle>
-          </CardHeader>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Enter topic (e.g. African Studies)"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="border rounded-lg px-3 py-2 w-full"
-            />
-            <input
-              type="number"
-              placeholder="Start Year (e.g. 2021)"
-              value={yearFrom}
-              onChange={(e) => setYearFrom(e.target.value)}
-              className="border rounded-lg px-3 py-2 w-full"
-            />
-            <input
-              type="number"
-              placeholder="End Year (e.g. 2025)"
-              value={yearTo}
-              onChange={(e) => setYearTo(e.target.value)}
-              className="border rounded-lg px-3 py-2 w-full"
-            />
-            <input
-              type="number"
-              placeholder="No. of results (e.g. 20)"
-              value={size}
-              onChange={(e) => setSize(Number(e.target.value))}
-              className="border rounded-lg px-3 py-2 w-full"
-            />
-          </div>
-
-          <button
-            onClick={fetchArticles}
-            disabled={loading}
-            className="mt-4 w-full bg-primary text-white py-2 rounded-lg hover:bg-primary/90 transition cursor-pointer"
-          >
-            {loading ? (
-              <span className="flex items-center justify-center">
-                <Loader2 className="animate-spin mr-2" /> Fetching...
-              </span>
-            ) : (
-              "Fetch Journal"
-            )}
-          </button>
-
-        </Card>
-
-
-        {/* Results */}
-        <div className="max-w-6xl mx-auto">
-          {articles.length > 0 ? (
-            <div className="overflow-x-auto shadow-lg rounded-2xl">
-              <table className="w-full border-collapse bg-white rounded-2xl">
-                <thead className="bg-primary text-white">
-                  <tr>
-                    <th className="p-3 text-left border">Journal</th>
-                    <th className="p-3 text-left border">Title</th>
-                    <th className="p-3 text-left border">Authors</th>
-                    <th className="p-3 text-left border">Year</th>
-                    <th className="p-3 text-left border">URL</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {articles.map((a, i) => (
-                    <tr
-                      key={i}
-                      className="border-b hover:bg-gray-50 transition text-sm"
-                    >
-                      <td className="p-3 border">{a.Journal || "—"}</td>
-                      <td className="p-3 border">{a.Title}</td>
-                      <td className="p-3 border">
-                        {Array.isArray(a.Authors)
-                          ? a.Authors.join(", ")
-                          : a.Authors || "—"}
-                      </td>
-                      <td className="p-3 border">{a.Year || "—"}</td>
-                      <td className="p-3 border">
-                        {a.URL ? (
-                          <a
-                            href={a.URL}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-blue-600 underline"
-                          >
-                            View
-                          </a>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {/* 📄 Download button */}
-              <button
-                onClick={downloadWord}
-                disabled={articles.length === 0}
-                className={`mt-4 w-full py-2 rounded-lg cursor-pointer transition ${articles.length === 0
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-primary text-white hover:bg-primary/90"
-                  }`}
-              >
-                ⬇Download as Word
-              </button>
-            </div>
-          ) : (
-            !loading && (
-              <p className="text-center text-gray-400 italic mt-6">
-                🔍 Start by searching for a topic above...
-              </p>
-            )
-          )}
-        </div>
-      </div>
-    </motion.div>
+    <ScraperTemplate
+      title="DOAJ Scraper"
+      description="Fetch open access journal articles from the Directory of Open Access Journals."
+      onSearch={onSearch}
+      onDownloadCSV={downloadCSV}
+      onDownloadWord={downloadWord}
+      columns={columns}
+      defaultParams={{ limit: "10" }}
+    />
   );
-}//make this look like the picture
+}

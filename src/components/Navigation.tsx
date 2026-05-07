@@ -1,168 +1,132 @@
-"use client";
-
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { motion, AnimatePresence, useAnimation } from "framer-motion";
-import { FaBookOpen, FaBook } from "react-icons/fa";
-import { HiOutlineMenu } from "react-icons/hi";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaBook, FaSearch, FaHome, FaGlobe, FaArchive, FaMoon, FaSun, FaChevronDown } from "react-icons/fa";
+import { HiOutlineMenuAlt3, HiX } from "react-icons/hi";
+import { useTheme } from "next-themes";
+import Link from "next/link";
 
 const navItems = [
-  { label: "DOAJ", path: "/doaj", icon: <FaBook /> },
+  { label: "Home", path: "/", icon: <FaHome /> },
+  { label: "DOAJ", path: "/doaj", icon: <FaSearch /> },
   { label: "DOAB", path: "/doab", icon: <FaBook /> },
-  { label: "OPENALEX", path: "/open-alex", icon: <FaBook /> },
-  { label: "OAPEN", path: "/oapen", icon: <FaBook /> },
+  { label: "OPENALEX", path: "/open-alex", icon: <FaGlobe /> },
+  { label: "OAPEN", path: "/oapen", icon: <FaArchive /> },
 ];
 
 export default function Navigation() {
-  // states
-  const [expanded, setExpanded] = useState(false); // labels + icons
-  const [iconsOnly, setIconsOnly] = useState(false); // icons only
-  const [hovered, setHovered] = useState(false); // temporary expand on hover
-  const [bounce, setBounce] = useState(false); // bounce idle toggle
-
-  const controls = useAnimation();
-  const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { theme, setTheme } = useTheme();
 
-  const collapseTimerRef = useRef<number | null>(null);
-  const iconCollapseTimerRef = useRef<number | null>(null);
-
-  // Clear timers safely
-  const clearTimers = (reset = false) => {
-    if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
-    if (iconCollapseTimerRef.current) clearTimeout(iconCollapseTimerRef.current);
-
-    collapseTimerRef.current = null;
-    iconCollapseTimerRef.current = null;
-
-    if (reset) {
-      setExpanded(false);
-      setIconsOnly(false);
-      setBounce(false);
-    }
-  };
-
-  // Auto-collapse stages
-  const startTimers = () => {
-    clearTimers();
-    setBounce(false); // stop bounce on activity
-
-    // After 10s → collapse to icons only
-    collapseTimerRef.current = window.setTimeout(() => {
-      setExpanded(false);
-      setIconsOnly(true);
-
-      // After 5s more → collapse fully & bounce
-      iconCollapseTimerRef.current = window.setTimeout(() => {
-        setIconsOnly(false);
-        setBounce(true);
-      }, 5000);
-    }, 10000);
-  };
-
-  const handleToggle = () => {
-    setExpanded(true);
-    setIconsOnly(false);
-    setBounce(false);
-    startTimers();
-  };
-
-  // cleanup on unmount
+  // Close mobile menu on route change
   useEffect(() => {
-    return () => clearTimers(true);
+    setIsOpen(false);
+  }, [pathname]);
+
+  // Wait for mounting to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
   }, []);
 
-  // Bounce animation
-  useEffect(() => {
-    if (bounce) {
-      controls
-        .start({
-          y: [0, -4, 0],
-          transition: { repeat: 5, duration: 0.7 }, // bounce 5 times
-        })
-        .then(() => {
-          // restart bounce after idle delay
-          setTimeout(() => setBounce(true), 8000);
-        });
-    } else {
-      controls.start({ y: 0 });
-    }
-  }, [bounce, controls]);
-
-  // Computed visual state
-  const isExpanded = expanded || hovered;
-  const showIcons = isExpanded || iconsOnly;
+  if (!mounted) return null;
 
   return (
-    <div
-      className="fixed top-1/2 -translate-y-1/2 left-2 sm:left-4 z-50 flex flex-col items-start"
-      onMouseEnter={() => {
-        setHovered(true);
-        setBounce(false);
-        startTimers();
-      }}
-      onMouseLeave={() => {
-        setHovered(false);
-      }}
-    >
-      {/* Toggle Button */}
-      <motion.button
-        aria-label="Expand navigation"
-        aria-expanded={isExpanded}
-        onClick={handleToggle}
-        className="mb-6 p-3 rounded-full bg-primary hover:bg-primary/90 transition shadow text-white"
-        animate={controls}
-      >
-        <HiOutlineMenu size={24} />
-      </motion.button>
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16 items-center">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white transition-transform group-hover:scale-110">
+              <FaBook size={18} />
+            </div>
+            <span className="font-bold text-xl text-slate-900 dark:text-white tracking-tight">
+              Scraper<span className="text-indigo-600">Hub</span>
+            </span>
+          </Link>
 
-      {/* Navigation Items */}
-
-      <div className="flex flex-col space-y-4">
-        {showIcons &&
-          navItems.map((item, index) => {
-            const isActive = pathname === item.path;
-
-            return (
-              <motion.button
-                key={index}
-                type="button"
-                role="link"
-                aria-current={isActive ? "page" : undefined}
-                onClick={() => {
-                  clearTimers(true);
-                  router.push(item.path);
-                  startTimers();
-                }}
-                className="flex items-center overflow-hidden rounded-full shadow-lg text-white cursor-pointer"
-                initial={false}
-                animate={{
-                  width: isExpanded ? 160 : 56,
-                  backgroundColor: isActive ? "#353535" : "#9CA3AF",
-                }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="flex items-center justify-center w-14 h-14 text-xl">
+          {/* Desktop Nav */}
+          <div className="hidden md:flex items-center gap-1">
+            {navItems.map((item) => {
+              const isActive = pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isActive
+                      ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
+                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  }`}
+                >
                   {item.icon}
-                </div>
+                  {item.label}
+                </Link>
+              );
+            })}
+            
+            <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 mx-2" />
+            
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              aria-label="Toggle theme"
+            >
+              {theme === "dark" ? <FaSun className="text-amber-400" /> : <FaMoon className="text-indigo-600" />}
+            </button>
+          </div>
 
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.span
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.2 }}
-                      className="px-4 font-semibold whitespace-nowrap"
-                    >
-                      {item.label}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.button>
-            );
-          })}
+          {/* Mobile Menu Button */}
+          <div className="md:hidden flex items-center gap-2">
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="p-2 rounded-lg text-slate-600 dark:text-slate-400"
+            >
+              {theme === "dark" ? <FaSun className="text-amber-400" /> : <FaMoon className="text-indigo-600" />}
+            </button>
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="p-2 text-slate-600 dark:text-slate-400"
+            >
+              {isOpen ? <HiX size={24} /> : <HiOutlineMenuAlt3 size={24} />}
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* Mobile Nav Menu */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="md:hidden bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 overflow-hidden"
+          >
+            <div className="px-4 py-4 space-y-1">
+              {navItems.map((item) => {
+                const isActive = pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    href={item.path}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-colors ${
+                      isActive
+                        ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
+                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </nav>
   );
 }
