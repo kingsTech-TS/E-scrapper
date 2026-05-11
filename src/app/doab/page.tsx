@@ -30,7 +30,7 @@ export default function DoabScraper() {
     return data.books || []
   }
 
-  const downloadCSV = (results: BookResult[], params: SearchParams) => {
+  const downloadCSV = async (results: BookResult[], params: SearchParams) => {
     if (results.length === 0) return
 
     try {

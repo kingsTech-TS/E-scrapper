@@ -28,8 +28,8 @@ export default function DoajScraper() {
     return await res.json();
   };
 
-  const downloadCSV = (results: ArticleResult[], params: SearchParams) => {
-    if (results.length === 0) return;
+  const downloadCSV = async (results: ArticleResult[], params: SearchParams) => {
+    if (results.length === 0) return
 
     try {
       const headers = ["Journal", "Title", "Authors", "Year", "URL"];

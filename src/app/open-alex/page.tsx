@@ -39,7 +39,7 @@ export default function OpenAlexScraper() {
     }))
   }
 
-  const downloadCSV = (results: BookResult[], params: SearchParams) => {
+  const downloadCSV = async (results: BookResult[], params: SearchParams) => {
     if (results.length === 0) return
 
     try {

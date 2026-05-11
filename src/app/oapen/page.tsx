@@ -26,7 +26,7 @@ export default function OapenScraper() {
     return await response.json()
   }
 
-  const downloadCSV = (results: BookResult[], params: SearchParams) => {
+  const downloadCSV = async (results: BookResult[], params: SearchParams) => {
     if (!results.length) return
 
     try {

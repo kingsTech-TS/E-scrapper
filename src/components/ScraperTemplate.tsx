@@ -15,8 +15,8 @@ interface ScraperTemplateProps {
   title: string;
   description: string;
   onSearch: (params: SearchParams) => Promise<any[]>;
-  onDownloadCSV: (results: any[], params: SearchParams) => void;
-  onDownloadWord: (results: any[], params: SearchParams) => void;
+  onDownloadCSV: (results: any[], params: SearchParams) => Promise<void> | void;
+  onDownloadWord: (results: any[], params: SearchParams) => Promise<void> | void;
   defaultParams?: Partial<SearchParams>;
   columns: { key: string; label: string; render?: (val: any) => React.ReactNode }[];
 }
@@ -46,6 +46,8 @@ export default function ScraperTemplate({
   });
   const [results, setResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloadingCSV, setIsDownloadingCSV] = useState(false);
+  const [isDownloadingWord, setIsDownloadingWord] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,32 +77,92 @@ export default function ScraperTemplate({
     }
   };
 
+  const handleDownloadCSV = async () => {
+    if (results.length === 0) return;
+    setIsDownloadingCSV(true);
+    const toastId = toast.loading("Preparing CSV download...");
+    try {
+      await onDownloadCSV(results, params);
+      toast.success("CSV downloaded successfully!", { id: toastId });
+    } catch (error) {
+      toast.error("Failed to download CSV", { id: toastId });
+    } finally {
+      setIsDownloadingCSV(false);
+    }
+  };
+
+  const handleDownloadWord = async () => {
+    if (results.length === 0) return;
+    setIsDownloadingWord(true);
+    const toastId = toast.loading("Generating Word document...");
+    try {
+      await onDownloadWord(results, params);
+      toast.success("Word document downloaded successfully!", { id: toastId });
+    } catch (error) {
+      toast.error("Failed to generate Word document", { id: toastId });
+    } finally {
+      setIsDownloadingWord(false);
+    }
+  };
+
   return (
-    <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-24 relative">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200 dark:border-slate-800 pb-8">
         <div className="space-y-2">
           <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">{title}</h1>
           <p className="text-lg text-slate-500 dark:text-slate-400 max-w-2xl">{description}</p>
         </div>
-        {hasSearched && results.length > 0 && (
-          <div className="flex items-center gap-3 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
-            <Button
-              variant="ghost"
-              onClick={() => onDownloadCSV(results, params)}
-              className="gap-2 text-xs font-bold uppercase tracking-wider h-10 px-4 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-all"
-            >
-              <TableIcon className="h-4 w-4 text-emerald-500" /> CSV
-            </Button>
-            <Button
-              onClick={() => onDownloadWord(results, params)}
-              className="gap-2 text-xs font-bold uppercase tracking-wider h-10 px-4 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 rounded-lg transition-all"
-            >
-              <FileText className="h-4 w-4" /> Word
-            </Button>
-          </div>
-        )}
       </div>
+
+      {/* Floating Download Actions */}
+      <AnimatePresence>
+        {hasSearched && results.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
+            className="fixed bottom-8 right-8 z-[60] flex flex-col sm:flex-row gap-4"
+          >
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button
+                variant="outline"
+                onClick={handleDownloadCSV}
+                disabled={isDownloadingCSV || isDownloadingWord}
+                className="h-14 px-8 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 shadow-2xl hover:bg-slate-50 dark:hover:bg-slate-800 text-sm font-black uppercase tracking-widest gap-3 transition-all"
+              >
+                {isDownloadingCSV ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />
+                ) : (
+                  <TableIcon className="h-5 w-5 text-emerald-500" />
+                )}
+                {isDownloadingCSV ? "Downloading..." : "Export CSV"}
+              </Button>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button
+                onClick={handleDownloadWord}
+                disabled={isDownloadingCSV || isDownloadingWord}
+                className="h-14 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-500/40 text-sm font-black uppercase tracking-widest gap-3 transition-all"
+              >
+                {isDownloadingWord ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <FileText className="h-5 w-5" />
+                )}
+                {isDownloadingWord ? "Generating..." : "Export Word"}
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Sidebar Controls */}
