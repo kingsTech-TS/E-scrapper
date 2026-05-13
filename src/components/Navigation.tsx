@@ -5,6 +5,7 @@ import { FaBook, FaSearch, FaHome, FaGlobe, FaArchive, FaMoon, FaSun, FaChevronD
 import { HiOutlineMenuAlt3, HiX } from "react-icons/hi";
 import { useTheme } from "next-themes";
 import Link from "next/link";
+import Image from "next/image";
 
 const navItems = [
   { label: "Home", path: "/", icon: <FaHome /> },
@@ -38,9 +39,15 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white transition-transform group-hover:scale-110">
-              <FaBook size={18} />
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative w-10 h-10 transition-transform group-hover:scale-105">
+              <Image 
+                src="/logo.png" 
+                alt="ScraperHub Logo" 
+                fill 
+                className="object-contain"
+                priority
+              />
             </div>
             <span className="font-bold text-xl text-slate-900 dark:text-white tracking-tight">
               Scraper<span className="text-indigo-600">Hub</span>
